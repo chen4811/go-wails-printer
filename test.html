@@ -214,8 +214,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>选择文件 (支持 PDF、图片、Word、Excel)</label>
-                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx">
+                <label>选择文件 (支持 PDF、图片)</label>
+                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp">
             </div>
             <div class="button-group">
                 <button class="btn btn-success" onclick="printFile()" id="printBtn" disabled>发送打印</button>
@@ -401,8 +401,7 @@
         function getFileTypeLabel(type) {
             const labels = {
                 pdf: 'PDF', image: '图片', jpg: 'JPG', jpeg: 'JPEG', png: 'PNG',
-                word: 'Word', doc: 'Word', docx: 'Word',
-                excel: 'Excel', xls: 'Excel', xlsx: 'Excel'
+                gif: 'GIF', bmp: 'BMP', webp: 'WebP'
             };
             return labels[type] || type?.toUpperCase() || '未知';
         }
@@ -437,9 +436,7 @@
             let fileType = 'pdf';
             
             if (fileName.endsWith('.pdf')) fileType = 'pdf';
-            else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) fileType = 'word';
-            else if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) fileType = 'excel';
-            else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].some(ext => fileName.endsWith(ext))) fileType = 'image';
+            else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => fileName.endsWith(ext))) fileType = 'image';
             
             log(`正在读取文件: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
             

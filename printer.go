@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // PrinterService 打印服务
@@ -208,7 +209,7 @@ func (p *PrinterService) Print(data []byte, fileType string, printerName string)
 	// 创建临时文件
 	tempDir := os.TempDir()
 	ext := p.getFileExtension(fileType)
-	tempFile := filepath.Join(tempDir, fmt.Sprintf("print_%d%s", os.Getpid(), ext))
+	tempFile := filepath.Join(tempDir, fmt.Sprintf("print_%d_%d%s", os.Getpid(), time.Now().UnixNano(), ext))
 
 	// 写入临时文件
 	if err := os.WriteFile(tempFile, data, 0644); err != nil {
@@ -222,10 +223,8 @@ func (p *PrinterService) Print(data []byte, fileType string, printerName string)
 		return p.printPDF(tempFile, printerName)
 	case "image", "jpg", "jpeg", "png", "gif", "bmp", "webp":
 		return p.printImage(tempFile, printerName)
-	case "word", "doc", "docx":
-		return p.printDocument(tempFile, printerName, "word")
-	case "excel", "xls", "xlsx":
-		return p.printDocument(tempFile, printerName, "excel")
+	case "word", "doc", "docx", "excel", "xls", "xlsx":
+		return errors.New("不支持打印 Word/Excel 文件")
 	default:
 		return p.printFile(tempFile, printerName)
 	}
@@ -284,31 +283,6 @@ func (p *PrinterService) printImage(filePath string, printerName string) error {
 	}
 }
 
-// printDocument 打印文档 (Word, Excel)
-func (p *PrinterService) printDocument(filePath string, printerName string, docType string) error {
-	switch runtime.GOOS {
-	case "windows":
-		cmd := exec.Command("cmd", "/c", "start", "/wait", "", filePath, "/p")
-		return cmd.Run()
-	case "darwin":
-		app := "Microsoft Word"
-		if docType == "excel" {
-			app = "Microsoft Excel"
-		}
-		cmd := exec.Command("open", "-a", app, filePath)
-		return cmd.Run()
-	case "linux":
-		cmd := exec.Command("libreoffice", "--headless", "--print-to-printer")
-		if printerName != "" {
-			cmd.Args = append(cmd.Args, printerName)
-		}
-		cmd.Args = append(cmd.Args, filePath)
-		return cmd.Run()
-	default:
-		return errors.New("不支持的操作系统")
-	}
-}
-
 // printFile 打印普通文件
 func (p *PrinterService) printFile(filePath string, printerName string) error {
 	switch runtime.GOOS {
@@ -342,14 +316,10 @@ func (p *PrinterService) getFileExtension(fileType string) string {
 		return ".png"
 	case "gif":
 		return ".gif"
-	case "word", "doc":
-		return ".doc"
-	case "docx":
-		return ".docx"
-	case "excel", "xls":
-		return ".xls"
-	case "xlsx":
-		return ".xlsx"
+	case "bmp":
+		return ".bmp"
+	case "webp":
+		return ".webp"
 	default:
 		return ".bin"
 	}
