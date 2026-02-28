@@ -33,11 +33,12 @@ type SocketServer struct {
 
 // SocketMessage Socket 消息结构
 type SocketMessage struct {
-	Type      string          `json:"type"`      // print, status, printers, task
+	Type      string          `json:"type"`      // print, print-url, status, printers, task
 	TaskID    string          `json:"taskId"`    
 	FileType  string          `json:"fileType"`  // pdf, image, word, excel
 	Printer   string          `json:"printer"`
 	Data      json.RawMessage `json:"data"`      // base64 编码的文件数据
+	URL       string          `json:"url"`       // 远程文件URL
 }
 
 // SocketResponse Socket 响应结构
@@ -210,6 +211,8 @@ func (s *SocketServer) handleMessage(conn *websocket.Conn, clientID string, msg 
 	switch msg.Type {
 	case "print":
 		s.handlePrint(conn, clientID, msg)
+	case "print-url":
+		s.handlePrintURL(conn, clientID, msg)
 	case "status":
 		s.sendResponse(conn, SocketResponse{
 			Type:    "status",
@@ -327,6 +330,50 @@ func (s *SocketServer) handleTaskStatus(conn *websocket.Conn, msg *SocketMessage
 	})
 }
 
+// handlePrintURL 处理远程URL打印请求
+func (s *SocketServer) handlePrintURL(conn *websocket.Conn, clientID string, msg *SocketMessage) {
+	taskID := msg.TaskID
+	if taskID == "" {
+		taskID = uuid.New().String()[:8]
+	}
+
+	if msg.URL == "" {
+		s.sendResponse(conn, SocketResponse{
+			Type:    "error",
+			TaskID:  taskID,
+			Success: false,
+			Message: "URL 不能为空",
+		})
+		return
+	}
+
+	// 创建任务
+	task := TaskInfo{
+		ID:        taskID,
+		Type:      msg.FileType,
+		Printer:   msg.Printer,
+		Status:    "pending",
+		Progress:  0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	s.app.AddTask(task)
+
+	// 发送任务已接收响应
+	s.sendResponse(conn, SocketResponse{
+		Type:    "task",
+		TaskID:  taskID,
+		Success: true,
+		Status:  "pending",
+		Message: "打印任务已接收，正在下载文件...",
+	})
+
+	// 异步处理打印任务
+	go func() {
+		s.app.ProcessPrintURLTask(taskID, msg.URL, msg.FileType, msg.Printer)
+	}()
+}
+
 // handleStatus HTTP 状态接口
 func (s *SocketServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -362,6 +409,7 @@ func (s *SocketServer) handlePrintHTTP(w http.ResponseWriter, r *http.Request) {
 		FileType string `json:"fileType"`
 		Printer  string `json:"printer"`
 		Data     string `json:"data"` // base64
+		URL      string `json:"url"`  // 远程文件URL
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -377,7 +425,33 @@ func (s *SocketServer) handlePrintHTTP(w http.ResponseWriter, r *http.Request) {
 		taskID = uuid.New().String()[:8]
 	}
 
-	// 解码 Base64
+	// 如果提供了URL，使用URL打印
+	if req.URL != "" {
+		task := TaskInfo{
+			ID:        taskID,
+			Type:      req.FileType,
+			Printer:   req.Printer,
+			Status:    "pending",
+			Progress:  0,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		s.app.AddTask(task)
+
+		go func() {
+			s.app.ProcessPrintURLTask(taskID, req.URL, req.FileType, req.Printer)
+		}()
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"taskId":  taskID,
+			"status":  "pending",
+			"message": "打印任务已接收，正在下载文件...",
+		})
+		return
+	}
+
+	// 否则使用Base64数据打印
 	data, err := decodeBase64(req.Data)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -388,7 +462,6 @@ func (s *SocketServer) handlePrintHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 创建任务
 	task := TaskInfo{
 		ID:        taskID,
 		Type:      req.FileType,
@@ -400,7 +473,6 @@ func (s *SocketServer) handlePrintHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.app.AddTask(task)
 
-	// 异步处理
 	go func() {
 		s.app.ProcessPrintTask(taskID, data, req.FileType, req.Printer)
 	}()

@@ -5,6 +5,7 @@
 ## 功能特性
 
 - 🖨️ 支持 PDF、图片等多种格式打印
+- 🌐 支持远程URL文件打印（自动下载并打印）
 - 🔌 WebSocket + HTTP 双协议支持
 - 📡 默认端口 11211，可自定义
 - 📋 实时任务状态追踪
@@ -98,10 +99,18 @@ GET /api/printers
 POST /api/print
 Content-Type: application/json
 
+// 方式1: Base64数据
 {
   "fileType": "pdf",
   "printer": "HP LaserJet",
   "data": "base64编码的文件数据"
+}
+
+// 方式2: 远程URL
+{
+  "fileType": "pdf",
+  "printer": "HP LaserJet",
+  "url": "https://example.com/document.pdf"
 }
 ```
 
@@ -125,13 +134,24 @@ GET /api/tasks
 
 #### 打印消息
 ```json
+// 方式1: Base64数据
 {
   "type": "print",
   "fileType": "pdf",
   "printer": "HP LaserJet",
   "data": "\"base64编码的数据\""
 }
+
+// 方式2: 远程URL
+{
+  "type": "print-url",
+  "fileType": "pdf",
+  "printer": "HP LaserJet",
+  "url": "https://example.com/document.pdf"
+}
 ```
+
+> 注意：使用 `print-url` 类型时，服务器会自动下载远程文件并打印。如果不指定 `fileType`，系统会自动检测文件类型。
 
 #### 查询任务状态
 ```json

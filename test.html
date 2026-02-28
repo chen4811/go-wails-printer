@@ -214,8 +214,23 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>选择文件 (支持 PDF、图片)</label>
-                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp">
+                <label>打印方式</label>
+                <select id="printMode" onchange="togglePrintMode()">
+                    <option value="file">上传文件</option>
+                    <option value="url">远程URL</option>
+                </select>
+            </div>
+            <div id="fileMode">
+                <div class="form-group">
+                    <label>选择文件 (支持 PDF、图片)</label>
+                    <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp">
+                </div>
+            </div>
+            <div id="urlMode" style="display: none;">
+                <div class="form-group">
+                    <label>文件URL (支持 PDF、图片，自动检测类型)</label>
+                    <input type="text" id="urlInput" placeholder="https://example.com/document.pdf" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                </div>
             </div>
             <div class="button-group">
                 <button class="btn btn-success" onclick="printFile()" id="printBtn" disabled>发送打印</button>
@@ -422,47 +437,103 @@
             });
         }
 
+        function togglePrintMode() {
+            const mode = document.getElementById('printMode').value;
+            document.getElementById('fileMode').style.display = mode === 'file' ? 'block' : 'none';
+            document.getElementById('urlMode').style.display = mode === 'url' ? 'block' : 'none';
+        }
+
         async function printFile() {
-            const fileInput = document.getElementById('fileInput');
+            const mode = document.getElementById('printMode').value;
             const printerSelect = document.getElementById('printerSelect');
             
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert('请选择文件');
-                return;
-            }
-            
-            const file = fileInput.files[0];
-            const fileName = file.name.toLowerCase();
-            let fileType = 'pdf';
-            
-            if (fileName.endsWith('.pdf')) fileType = 'pdf';
-            else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => fileName.endsWith(ext))) fileType = 'image';
-            
-            log(`正在读取文件: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
-            
-            // 读取文件并转 Base64
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const base64 = e.target.result.split(',')[1]; // 移除 data:xxx;base64, 前缀
-                const taskId = Date.now().toString(36);
+            if (mode === 'url') {
+                // 远程URL打印
+                const url = document.getElementById('urlInput').value.trim();
                 
+                if (!url) {
+                    alert('请输入文件URL');
+                    return;
+                }
+                
+                const taskId = Date.now().toString(36);
                 const message = {
-                    type: 'print',
+                    type: 'print-url',
                     taskId: taskId,
-                    fileType: fileType,
-                    printer: printerSelect.value,
-                    data: base64
+                    url: url,
+                    printer: printerSelect.value
                 };
                 
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify(message));
-                    log(`已发送打印任务: ${taskId}`, 'success');
+                    log(`已发送URL打印任务: ${taskId}`, 'success');
                 } else {
-                    // 使用 HTTP API
-                    sendPrintHTTP(taskId, fileType, printerSelect.value, base64);
+                    sendPrintURLHTTP(taskId, url, printerSelect.value);
                 }
-            };
-            reader.readAsDataURL(file);
+            } else {
+                // 文件上传打印
+                const fileInput = document.getElementById('fileInput');
+                
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('请选择文件');
+                    return;
+                }
+                
+                const file = fileInput.files[0];
+                const fileName = file.name.toLowerCase();
+                let fileType = 'pdf';
+                
+                if (fileName.endsWith('.pdf')) fileType = 'pdf';
+                else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].some(ext => fileName.endsWith(ext))) fileType = 'image';
+                
+                log(`正在读取文件: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result.split(',')[1];
+                    const taskId = Date.now().toString(36);
+                    
+                    const message = {
+                        type: 'print',
+                        taskId: taskId,
+                        fileType: fileType,
+                        printer: printerSelect.value,
+                        data: base64
+                    };
+                    
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify(message));
+                        log(`已发送打印任务: ${taskId}`, 'success');
+                    } else {
+                        sendPrintHTTP(taskId, fileType, printerSelect.value, base64);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function sendPrintURLHTTP(taskId, url, printer) {
+            const port = document.getElementById('portInput').value;
+            try {
+                const response = await fetch(`http://localhost:${port}/api/print`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        taskId: taskId,
+                        url: url,
+                        printer: printer
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    log(`HTTP URL打印任务已提交: ${taskId}`, 'success');
+                    refreshTasks();
+                } else {
+                    log(`打印失败: ${result.error}`, 'error');
+                }
+            } catch (err) {
+                log(`HTTP 请求失败: ${err.message}`, 'error');
+            }
         }
 
         async function sendPrintHTTP(taskId, fileType, printer, base64Data) {

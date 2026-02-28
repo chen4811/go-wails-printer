@@ -30,6 +30,10 @@ export function ProcessPrintTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ProcessPrintTask'](arg1, arg2, arg3, arg4);
 }
 
+export function ProcessPrintURLTask(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ProcessPrintURLTask'](arg1, arg2, arg3, arg4);
+}
+
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
 }

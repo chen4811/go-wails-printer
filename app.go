@@ -318,6 +318,55 @@ func (a *App) ProcessPrintTask(taskID string, data []byte, fileType string, prin
 	}
 }
 
+// ProcessPrintURLTask 处理远程URL打印任务
+func (a *App) ProcessPrintURLTask(taskID string, url string, fileType string, printerName string) {
+	// 更新任务状态为处理中（下载中）
+	a.UpdateTask(taskID, "processing", 5, "")
+	
+	// 下载文件
+	data, detectedType, err := a.printer.DownloadFile(url)
+	if err != nil {
+		a.UpdateTask(taskID, "failed", 0, "下载文件失败: "+err.Error())
+		a.emitTaskError(taskID, "下载文件失败: "+err.Error())
+		return
+	}
+	
+	// 更新进度
+	a.UpdateTask(taskID, "processing", 30, "")
+	
+	// 如果未指定文件类型，使用检测到的类型
+	if fileType == "" {
+		fileType = detectedType
+	}
+	
+	// 选择打印机
+	if printerName == "" {
+		printerName = a.config.DefaultPrinter
+	}
+	if printerName == "" && len(a.status.Printers) > 0 {
+		for _, p := range a.status.Printers {
+			if p.IsDefault {
+				printerName = p.Name
+				break
+			}
+		}
+	}
+	if printerName == "" && len(a.status.Printers) > 0 {
+		printerName = a.status.Printers[0].Name
+	}
+	
+	// 执行打印
+	err = a.printer.Print(data, fileType, printerName)
+	
+	if err != nil {
+		a.UpdateTask(taskID, "failed", 0, err.Error())
+		a.emitTaskError(taskID, err.Error())
+	} else {
+		a.UpdateTask(taskID, "completed", 100, "")
+		a.emitTaskComplete(taskID)
+	}
+}
+
 // emitStatusChange 发送状态变更事件
 func (a *App) emitStatusChange() {
 	if a.ctx != nil {

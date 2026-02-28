@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -335,4 +337,115 @@ func decodeBase64(data string) ([]byte, error) {
 
 	// 解码
 	return base64.StdEncoding.DecodeString(data)
+}
+
+// DownloadFile 下载远程文件并返回文件数据和类型
+func (p *PrinterService) DownloadFile(url string) ([]byte, string, error) {
+	// 创建 HTTP 客户端，设置超时
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+	
+	// 发送 GET 请求
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, "", fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("HTTP 错误: %d", resp.StatusCode)
+	}
+	
+	// 读取文件内容
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("读取响应失败: %v", err)
+	}
+	
+	// 检测文件类型
+	fileType := detectFileType(url, resp.Header.Get("Content-Type"), data)
+	
+	return data, fileType, nil
+}
+
+// detectFileType 检测文件类型
+func detectFileType(url string, contentType string, data []byte) string {
+	// 先从 URL 扩展名判断
+	urlLower := strings.ToLower(url)
+	if strings.Contains(urlLower, ".pdf") {
+		return "pdf"
+	}
+	if strings.Contains(urlLower, ".jpg") || strings.Contains(urlLower, ".jpeg") {
+		return "jpg"
+	}
+	if strings.Contains(urlLower, ".png") {
+		return "png"
+	}
+	if strings.Contains(urlLower, ".gif") {
+		return "gif"
+	}
+	if strings.Contains(urlLower, ".bmp") {
+		return "bmp"
+	}
+	if strings.Contains(urlLower, ".webp") {
+		return "webp"
+	}
+	
+	// 从 Content-Type 判断
+	ctLower := strings.ToLower(contentType)
+	if strings.Contains(ctLower, "pdf") {
+		return "pdf"
+	}
+	if strings.Contains(ctLower, "jpeg") || strings.Contains(ctLower, "jpg") {
+		return "jpg"
+	}
+	if strings.Contains(ctLower, "png") {
+		return "png"
+	}
+	if strings.Contains(ctLower, "gif") {
+		return "gif"
+	}
+	if strings.Contains(ctLower, "bmp") {
+		return "bmp"
+	}
+	if strings.Contains(ctLower, "webp") {
+		return "webp"
+	}
+	if strings.HasPrefix(ctLower, "image/") {
+		return "image"
+	}
+	
+	// 从文件头判断
+	if len(data) > 4 {
+		// PDF: %PDF
+		if data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46 {
+			return "pdf"
+		}
+		// PNG: 89 50 4E 47
+		if data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 {
+			return "png"
+		}
+		// JPEG: FF D8 FF
+		if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+			return "jpg"
+		}
+		// GIF: GIF8
+		if data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38 {
+			return "gif"
+		}
+		// BMP: BM
+		if data[0] == 0x42 && data[1] == 0x4D {
+			return "bmp"
+		}
+		// WebP: RIFF....WEBP
+		if len(data) > 12 && data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 &&
+			data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50 {
+			return "webp"
+		}
+	}
+	
+	// 默认返回 PDF
+	return "pdf"
 }
