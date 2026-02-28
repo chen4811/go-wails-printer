@@ -108,10 +108,10 @@ func (a *App) startup(ctx context.Context) {
 	fmt.Println("[startup] 初始化 Socket 服务...")
 	a.socket = NewSocketServer(a.config.Port, a)
 	
-	// 自动启动 - 延迟启动确保UI已加载
+	// 自动启动 - 延迟启动确保UI已加载并准备好接收事件
 	if a.config.AutoStart {
 		go func() {
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 			fmt.Println("[startup] 自动启动服务...")
 			if err := a.StartServer(); err != nil {
 				fmt.Printf("[startup] 自动启动服务失败: %v\n", err)

@@ -339,14 +339,13 @@ let refreshInterval = null
 
 // 初始化
 onMounted(async () => {
-  await loadConfig()
-  await refreshStatus()
-  await refreshPrinters()
-  await refreshTasks()
-
-  // 监听事件
+  // 先注册事件监听器，再调用 API
   EventsOn('status-change', (data) => {
     status.value = data
+    // 同时更新打印机列表
+    if (data.printers && data.printers.length > 0) {
+      printers.value = data.printers
+    }
   })
   
   EventsOn('task-complete', () => {
@@ -356,6 +355,12 @@ onMounted(async () => {
   EventsOn('task-error', () => {
     refreshTasks()
   })
+
+  // 然后加载数据
+  await loadConfig()
+  await refreshStatus()
+  await refreshPrinters()
+  await refreshTasks()
 
   // 定时刷新
   refreshInterval = setInterval(() => {
