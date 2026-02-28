@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打印服务测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1a73e8;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ea4335;
+        }
+        .status-indicator.connected {
+            background: #34a853;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1557b0;
+        }
+        .btn-success {
+            background: #34a853;
+            color: white;
+        }
+        .btn-danger {
+            background: #ea4335;
+            color: white;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        select, input[type="file"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .printer-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .printer-item {
+            padding: 12px 16px;
+            background: #f0f4f8;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .printer-item.default {
+            background: #e8f5e9;
+            border: 1px solid #34a853;
+        }
+        .task-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .task-list th, .task-list td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .task-list th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .status-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #cce5ff; color: #004085; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .progress-bar {
+            width: 100px;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #1a73e8;
+            transition: width 0.3s;
+        }
+        .log-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-item {
+            margin-bottom: 4px;
+        }
+        .log-time {
+            color: #6a9955;
+        }
+        .log-info { color: #9cdcfe; }
+        .log-error { color: #f14c4c; }
+        .log-success { color: #4ec9b0; }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖨️ 打印服务测试页面</h1>
+        
+        <!-- 连接状态 -->
+        <div class="card">
+            <div class="card-title">连接状态</div>
+            <div class="status-bar">
+                <div id="statusIndicator" class="status-indicator"></div>
+                <span id="statusText">未连接</span>
+                <input type="number" id="portInput" value="11211" style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                <button id="connectBtn" class="btn btn-primary" onclick="connect()">连接</button>
+                <button id="disconnectBtn" class="btn btn-danger" onclick="disconnect()" disabled>断开</button>
+            </div>
+        </div>
+
+        <!-- 打印机列表 -->
+        <div class="card">
+            <div class="card-title">打印机列表</div>
+            <div id="printerList" class="printer-list">
+                <div class="empty">请先连接服务</div>
+            </div>
+        </div>
+
+        <!-- 打印测试 -->
+        <div class="card">
+            <div class="card-title">发送打印任务</div>
+            <div class="form-group">
+                <label>选择打印机</label>
+                <select id="printerSelect">
+                    <option value="">默认打印机</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>选择文件 (支持 PDF、图片、Word、Excel)</label>
+                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx">
+            </div>
+            <div class="button-group">
+                <button class="btn btn-success" onclick="printFile()" id="printBtn" disabled>发送打印</button>
+                <button class="btn btn-primary" onclick="refreshTasks()">刷新任务</button>
+            </div>
+        </div>
+
+        <!-- 打印任务 -->
+        <div class="card">
+            <div class="card-title">打印任务</div>
+            <table class="task-list">
+                <thead>
+                    <tr>
+                        <th>任务ID</th>
+                        <th>类型</th>
+                        <th>打印机</th>
+                        <th>状态</th>
+                        <th>进度</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody id="taskList">
+                    <tr>
+                        <td colspan="6" class="empty">暂无打印任务</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 日志 -->
+        <div class="card">
+            <div class="card-title">日志</div>
+            <div id="logArea" class="log-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let printers = [];
+
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const time = new Date().toLocaleTimeString();
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+            logArea.appendChild(item);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const printBtn = document.getElementById('printBtn');
+
+            if (connected) {
+                indicator.classList.add('connected');
+                text.textContent = '已连接';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                printBtn.disabled = false;
+            } else {
+                indicator.classList.remove('connected');
+                text.textContent = '未连接';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                printBtn.disabled = true;
+            }
+        }
+
+        function connect() {
+            const port = document.getElementById('portInput').value;
+            const url = `ws://localhost:${port}/ws`;
+            
+            log(`正在连接 ${url}...`);
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = function() {
+                log('WebSocket 连接成功!', 'success');
+                updateStatus(true);
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+            
+            ws.onerror = function(error) {
+                log('WebSocket 错误', 'error');
+                console.error(error);
+            };
+            
+            ws.onclose = function() {
+                log('WebSocket 连接关闭', 'error');
+                updateStatus(false);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function handleMessage(data) {
+            log(`收到消息: ${JSON.stringify(data)}`, 'info');
+            
+            switch(data.type) {
+                case 'connected':
+                    printers = data.data?.printers || [];
+                    renderPrinters(printers);
+                    log(`已连接，客户端ID: ${data.data?.clientId}`, 'success');
+                    break;
+                case 'printers':
+                    printers = data.data || [];
+                    renderPrinters(printers);
+                    break;
+                case 'task':
+                    log(`任务 ${data.taskId} 状态: ${data.status}`, 
+                        data.status === 'completed' ? 'success' : 
+                        data.status === 'failed' ? 'error' : 'info');
+                    refreshTasks();
+                    break;
+                case 'tasks':
+                    renderTasks(data.data || []);
+                    break;
+                case 'status':
+                    renderTasks(data.data?.tasks || []);
+                    break;
+                case 'error':
+                    log(`错误: ${data.message || data.error}`, 'error');
+                    break;
+            }
+        }
+
+        function renderPrinters(list) {
+            const container = document.getElementById('printerList');
+            const select = document.getElementById('printerSelect');
+            
+            if (list.length === 0) {
+                container.innerHTML = '<div class="empty">未检测到打印机</div>';
+                return;
+            }
+            
+            container.innerHTML = list.map(p => `
+                <div class="printer-item ${p.isDefault ? 'default' : ''}">
+                    🖨️ ${p.name} ${p.isDefault ? '(默认)' : ''}
+                </div>
+            `).join('');
+            
+            select.innerHTML = '<option value="">默认打印机</option>' + 
+                list.map(p => `<option value="${p.name}">${p.name} ${p.isDefault ? '(默认)' : ''}</option>`).join('');
+        }
+
+        function renderTasks(tasks) {
+            const tbody = document.getElementById('taskList');
+            
+            if (tasks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无打印任务</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = tasks.map(t => `
+                <tr>
+                    <td><code>${t.id}</code></td>
+                    <td>${getFileTypeLabel(t.type)}</td>
+                    <td>${t.printer || '默认'}</td>
+                    <td><span class="status-tag status-${t.status}">${getStatusLabel(t.status)}</span></td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${t.progress || 0}%"></div>
+                        </div>
+                    </td>
+                    <td>${formatTime(t.createdAt)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function getFileTypeLabel(type) {
+            const labels = {
+                pdf: 'PDF', image: '图片', jpg: 'JPG', jpeg: 'JPEG', png: 'PNG',
+                word: 'Word', doc: 'Word', docx: 'Word',
+                excel: 'Excel', xls: 'Excel', xlsx: 'Excel'
+            };
+            return labels[type] || type?.toUpperCase() || '未知';
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                pending: '等待中', processing: '处理中', 
+                completed: '已完成', failed: '失败'
+            };
+            return labels[status] || status;
+        }
+
+        function formatTime(time) {
+            if (!time) return '-';
+            return new Date(time).toLocaleString('zh-CN', {
+                month: '2-digit', day: '2-digit', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+        }
+
+        async function printFile() {
+            const fileInput = document.getElementById('fileInput');
+            const printerSelect = document.getElementById('printerSelect');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请选择文件');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const fileName = file.name.toLowerCase();
+            let fileType = 'pdf';
+            
+            if (fileName.endsWith('.pdf')) fileType = 'pdf';
+            else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) fileType = 'word';
+            else if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) fileType = 'excel';
+            else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].some(ext => fileName.endsWith(ext))) fileType = 'image';
+            
+            log(`正在读取文件: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+            
+            // 读取文件并转 Base64
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1]; // 移除 data:xxx;base64, 前缀
+                const taskId = Date.now().toString(36);
+                
+                const message = {
+                    type: 'print',
+                    taskId: taskId,
+                    fileType: fileType,
+                    printer: printerSelect.value,
+                    data: base64
+                };
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify(message));
+                    log(`已发送打印任务: ${taskId}`, 'success');
+                } else {
+                    // 使用 HTTP API
+                    sendPrintHTTP(taskId, fileType, printerSelect.value, base64);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function sendPrintHTTP(taskId, fileType, printer, base64Data) {
+            const port = document.getElementById('portInput').value;
+            try {
+                const response = await fetch(`http://localhost:${port}/api/print`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        taskId: taskId,
+                        fileType: fileType,
+                        printer: printer,
+                        data: base64Data
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    log(`HTTP 打印任务已提交: ${taskId}`, 'success');
+                    refreshTasks();
+                } else {
+                    log(`打印失败: ${result.error}`, 'error');
+                }
+            } catch (err) {
+                log(`HTTP 请求失败: ${err.message}`, 'error');
+            }
+        }
+
+        async function refreshTasks() {
+            const port = document.getElementById('portInput').value;
+            try {
+                const response = await fetch(`http://localhost:${port}/api/tasks`);
+                const result = await response.json();
+                renderTasks(result.tasks || []);
+            } catch (err) {
+                log(`获取任务列表失败: ${err.message}`, 'error');
+            }
+        }
+
+        // 通过 HTTP 获取打印机列表（备用）
+        async function fetchPrinters() {
+            const port = document.getElementById('portInput').value;
+            try {
+                const response = await fetch(`http://localhost:${port}/api/printers`);
+                const result = await response.json();
+                if (result.printers) {
+                    printers = result.printers;
+                    renderPrinters(printers);
+                }
+            } catch (err) {
+                log(`获取打印机列表失败: ${err.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
