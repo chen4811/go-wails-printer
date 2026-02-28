@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App 应用主结构
@@ -25,10 +25,9 @@ type App struct {
 
 // Config 配置结构
 type Config struct {
-	Port         int    `json:"port"`
-	AutoStart    bool   `json:"autoStart"`
-	MinimizeTray bool   `json:"minimizeTray"`
-	Notifications bool  `json:"notifications"`
+	Port          int    `json:"port"`
+	AutoStart     bool   `json:"autoStart"`
+	MinimizeTray  bool   `json:"minimizeTray"`
 	DefaultPrinter string `json:"defaultPrinter"`
 }
 
@@ -72,7 +71,6 @@ func NewApp() *App {
 			Port:         11211,
 			AutoStart:    true,
 			MinimizeTray: true,
-			Notifications: true,
 		},
 	}
 }
@@ -370,14 +368,14 @@ func (a *App) ProcessPrintURLTask(taskID string, url string, fileType string, pr
 // emitStatusChange 发送状态变更事件
 func (a *App) emitStatusChange() {
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "status-change", a.GetStatus())
+		wailsRuntime.EventsEmit(a.ctx, "status-change", a.GetStatus())
 	}
 }
 
 // emitTaskError 发送任务错误事件
 func (a *App) emitTaskError(taskID string, errMsg string) {
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "task-error", map[string]string{
+		wailsRuntime.EventsEmit(a.ctx, "task-error", map[string]string{
 			"taskId": taskID,
 			"error":  errMsg,
 		})
@@ -387,7 +385,7 @@ func (a *App) emitTaskError(taskID string, errMsg string) {
 // emitTaskComplete 发送任务完成事件
 func (a *App) emitTaskComplete(taskID string) {
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "task-complete", map[string]string{
+		wailsRuntime.EventsEmit(a.ctx, "task-complete", map[string]string{
 			"taskId": taskID,
 		})
 	}

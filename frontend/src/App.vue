@@ -45,12 +45,6 @@
                 开机自动启动服务
               </label>
             </div>
-            <div class="form-group checkbox-group">
-              <label>
-                <input type="checkbox" v-model="config.notifications" @change="saveConfig" />
-                启用通知提醒
-              </label>
-            </div>
             <div class="button-group">
               <button 
                 v-if="!status.isRunning" 
@@ -198,7 +192,6 @@ const config = ref({
   port: 11211,
   autoStart: true,
   minimizeTray: true,
-  notifications: true,
   defaultPrinter: ''
 })
 
@@ -266,6 +259,10 @@ async function loadConfig() {
 // 保存配置
 async function saveConfig() {
   try {
+    // 如果启用了通知，请求权限
+    if (config.value.notifications && 'Notification' in window && Notification.permission !== 'granted') {
+      await Notification.requestPermission()
+    }
     await SaveConfig(config.value)
   } catch (err) {
     console.error('保存配置失败:', err)
@@ -334,6 +331,33 @@ function formatTime(time) {
   })
 }
 
+// 显示系统通知
+function showNotification(title, body, type = 'info') {
+  // 检查浏览器是否支持通知
+  if (!('Notification' in window)) {
+    console.warn('浏览器不支持系统通知')
+    return
+  }
+  
+  // 检查通知权限
+  if (Notification.permission === 'granted') {
+    new Notification(title, {
+      body: body,
+      icon: type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'
+    })
+  } else if (Notification.permission !== 'denied') {
+    // 请求通知权限
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'
+        })
+      }
+    })
+  }
+}
+
 // 定时刷新句柄
 let refreshInterval = null
 
@@ -348,12 +372,20 @@ onMounted(async () => {
     }
   })
   
-  EventsOn('task-complete', () => {
+  EventsOn('task-complete', (data) => {
     refreshTasks()
+    // 显示通知
+    if (config.value.notifications) {
+      showNotification('打印完成', `任务 ${data?.taskId || ''} 已成功打印`, 'success')
+    }
   })
   
-  EventsOn('task-error', () => {
+  EventsOn('task-error', (data) => {
     refreshTasks()
+    // 显示通知
+    if (config.value.notifications) {
+      showNotification('打印失败', `任务 ${data?.taskId || ''} 失败: ${data?.error || '未知错误'}`, 'error')
+    }
   })
 
   // 然后加载数据
