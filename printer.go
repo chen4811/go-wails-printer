@@ -236,11 +236,7 @@ func (p *PrinterService) Print(data []byte, fileType string, printerName string)
 func (p *PrinterService) printPDF(filePath string, printerName string) error {
 	switch runtime.GOOS {
 	case "windows":
-		cmd := exec.Command("cmd", "/c", "start", "/min", "", filePath, "/p")
-		if printerName != "" {
-			cmd = exec.Command("cmd", "/c", "start", "/min", "", filePath, "/t", printerName)
-		}
-		return cmd.Run()
+		return p.printPDFWindows(filePath, printerName)
 	case "darwin":
 		cmd := exec.Command("lpr")
 		if printerName != "" {
@@ -258,6 +254,122 @@ func (p *PrinterService) printPDF(filePath string, printerName string) error {
 	default:
 		return errors.New("不支持的操作系统")
 	}
+}
+
+// printPDFWindows Windows 平台打印 PDF
+func (p *PrinterService) printPDFWindows(filePath string, printerName string) error {
+	// 方法1: 使用 Shell.Application COM 对象打印 (最可靠)
+	psScript := fmt.Sprintf(`
+$sh = New-Object -ComObject Shell.Application
+$folder = $sh.Namespace((Split-Path -Path '%s' -Parent))
+$file = $folder.ParseName((Split-Path -Path '%s' -Leaf))
+%s
+$file.InvokeVerb('Print')
+Start-Sleep -Seconds 3
+`, filePath, filePath, p.getPrinterSetupScript(printerName))
+
+	cmd := exec.Command("powershell", "-Command", psScript)
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	fmt.Printf("Shell.Application 打印失败: %v, 输出: %s\n", err, string(output))
+
+	// 方法2: 使用 Adobe Reader 或 Edge 打印
+	if err := p.printWithAdobeReader(filePath, printerName); err == nil {
+		return nil
+	}
+	fmt.Printf("Adobe Reader 打印失败: %v\n", err)
+
+	// 方法3: 使用 Ghostscript (如果安装)
+	if err := p.printWithGhostscript(filePath, printerName); err == nil {
+		return nil
+	}
+	fmt.Printf("Ghostscript 打印失败: %v\n", err)
+
+	// 方法4: 最后尝试用默认程序打开，用户手动打印
+	fmt.Println("所有自动打印方法失败，尝试打开文件...")
+	cmd = exec.Command("cmd", "/c", "start", "", filePath)
+	return cmd.Run()
+}
+
+// getPrinterSetupScript 获取打印机设置脚本
+func (p *PrinterService) getPrinterSetupScript(printerName string) string {
+	if printerName == "" {
+		return ""
+	}
+	// 获取当前默认打印机并临时更改
+	return fmt.Sprintf(`
+$oldDefault = (Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Default=$true").Name
+$targetPrinter = Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Name='%s'"
+if ($targetPrinter) { $targetPrinter.SetDefaultPrinter() }
+`, printerName)
+}
+
+// printWithAdobeReader 使用 Adobe Reader 打印
+func (p *PrinterService) printWithAdobeReader(filePath string, printerName string) error {
+	// 查找 Adobe Reader 路径
+	adobePaths := []string{
+		`C:\Program Files\Adobe\Acrobat DC\Acrobat\Acrobat.exe`,
+		`C:\Program Files (x86)\Adobe\Acrobat DC\Acrobat\Acrobat.exe`,
+		`C:\Program Files\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe`,
+		`C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe`,
+		`C:\Program Files\Adobe\Reader 11.0\Reader\AcroRd32.exe`,
+		`C:\Program Files (x86)\Adobe\Reader 11.0\Reader\AcroRd32.exe`,
+	}
+
+	for _, adobePath := range adobePaths {
+		if _, err := os.Stat(adobePath); err == nil {
+			var cmd *exec.Cmd
+			if printerName != "" {
+				cmd = exec.Command(adobePath, "/t", filePath, printerName)
+			} else {
+				cmd = exec.Command(adobePath, "/t", filePath)
+			}
+			return cmd.Run()
+		}
+	}
+	return errors.New("未找到 Adobe Reader")
+}
+
+// printWithGhostscript 使用 Ghostscript 打印
+func (p *PrinterService) printWithGhostscript(filePath string, printerName string) error {
+	// 查找 Ghostscript 路径
+	gsPaths := []string{
+		`C:\Program Files\gs\gs10.02.1\bin\gswin64c.exe`,
+		`C:\Program Files\gs\gs10.01.1\bin\gswin64c.exe`,
+		`C:\Program Files\gs\gs9.56.1\bin\gswin64c.exe`,
+		`C:\Program Files (x86)\gs\gs9.56.1\bin\gswin32c.exe`,
+	}
+
+	// 也可以尝试 PATH 中的 gswin64c
+	gsInPath, _ := exec.LookPath("gswin64c.exe")
+	if gsInPath != "" {
+		gsPaths = append([]string{gsInPath}, gsPaths...)
+	}
+
+	for _, gsPath := range gsPaths {
+		if _, err := os.Stat(gsPath); err == nil {
+			printer := printerName
+			if printer == "" {
+				// 获取默认打印机
+				cmd := exec.Command("powershell", "-Command", "(Get-WmiObject -Query \"SELECT * FROM Win32_Printer WHERE Default=$true\").Name")
+				output, _ := cmd.Output()
+				printer = strings.TrimSpace(string(output))
+			}
+			if printer == "" {
+				continue
+			}
+			cmd := exec.Command(gsPath,
+				"-dPrinted", "-dBATCH", "-dNOPAUSE",
+				"-dNoCancel", "-q",
+				"-sDEVICE=mswinpr2",
+				fmt.Sprintf(`-sOutputFile="\\spool\%s"`, printer),
+				filePath)
+			return cmd.Run()
+		}
+	}
+	return errors.New("未找到 Ghostscript")
 }
 
 // printImage 打印图片
