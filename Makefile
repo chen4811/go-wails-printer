@@ -1,12 +1,35 @@
-.PHONY: dev build build-all clean install
+.PHONY: dev build build-all clean install copy-deps
+
+# 复制依赖文件到 build 目录
+copy-deps:
+	@echo "复制 PDFtoPrinter.exe 到 build 目录..."
+	@if exist PDFtoPrinter.exe (
+		if not exist build\bin mkdir build\bin
+		copy /Y PDFtoPrinter.exe build\bin\ >nul
+		echo PDFtoPrinter.exe 已复制到 build\bin\
+	) else (
+		echo 警告: 未找到 PDFtoPrinter.exe
+	)
 
 # 开发模式
 dev:
+	@echo "检查依赖文件..."
+	@if exist PDFtoPrinter.exe (
+		echo PDFtoPrinter.exe 存在
+	) else (
+		echo 警告: 未找到 PDFtoPrinter.exe，PDF 打印功能将不可用
+	)
 	wails dev
 
 # 构建当前平台
 build:
 	wails build
+	@echo "复制依赖文件..."
+	@if exist PDFtoPrinter.exe (
+		if not exist build\bin mkdir build\bin
+		copy /Y PDFtoPrinter.exe build\bin\ >nul
+		echo PDFtoPrinter.exe 已复制到 build\bin\
+	)
 
 # 构建所有平台
 build-all:

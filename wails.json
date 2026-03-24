@@ -16,5 +16,10 @@
     "productVersion": "2.0.0",
     "copyright": "Copyright © 2024",
     "comments": "跨平台打印服务器"
+  },
+  "nsis": {
+    "include": [
+      "PDFtoPrinter.exe"
+    ]
   }
 }
