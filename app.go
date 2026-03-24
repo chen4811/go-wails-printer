@@ -390,3 +390,22 @@ func (a *App) emitTaskComplete(taskID string) {
 		})
 	}
 }
+
+// Quit 退出应用
+func (a *App) Quit() {
+	fmt.Println("[Quit] 正在退出应用...")
+	
+	// 停止 socket 服务
+	if a.socket != nil && a.socket.IsRunning() {
+		fmt.Println("[Quit] 停止 Socket 服务...")
+		a.socket.Stop()
+	}
+	
+	// 保存配置
+	a.saveConfig()
+	
+	// 退出应用
+	if a.ctx != nil {
+		wailsRuntime.Quit(a.ctx)
+	}
+}

@@ -18,16 +18,16 @@ func main() {
 
 	// 创建 Wails 应用
 	err := wails.Run(&options.App{
-		Title:            "打印服务器",
-		Width:            1024,
-		Height:           768,
-		MinWidth:         800,
-		MinHeight:        600,
-		DisableResize:    false,
-		Frameless:        false,
-		StartHidden:      false,
-		HideWindowOnClose: true,
-		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 1},
+		Title:             "打印服务器",
+		Width:             1024,
+		Height:            768,
+		MinWidth:          800,
+		MinHeight:         600,
+		DisableResize:     false,
+		Frameless:         false,
+		StartHidden:       false,
+		HideWindowOnClose: false, // 关闭窗口时退出应用
+		BackgroundColour:  &options.RGBA{R: 255, G: 255, B: 255, A: 1},
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

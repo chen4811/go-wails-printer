@@ -175,7 +175,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { StartServer, StopServer, GetStatus, GetPrinters, GetConfig, SaveConfig, GetTasks, ClearTasks } from '../wailsjs/go/main/App'
+import { StartServer, StopServer, GetStatus, GetPrinters, GetConfig, SaveConfig, GetTasks, ClearTasks, Quit } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 // 状态
@@ -197,6 +197,26 @@ const config = ref({
 
 const printers = ref([])
 const tasks = ref([])
+
+// 窗口关闭处理
+async function handleWindowClose(e) {
+  console.log('窗口正在关闭...')
+  // 清理定时器
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
+  // 移除事件监听
+  EventsOff('status-change')
+  EventsOff('task-complete')
+  EventsOff('task-error')
+  // 调用后端退出方法
+  try {
+    await Quit()
+  } catch (err) {
+    console.error('退出失败:', err)
+  }
+}
 
 // 启动服务
 async function startServer() {
@@ -363,6 +383,9 @@ let refreshInterval = null
 
 // 初始化
 onMounted(async () => {
+  // 监听窗口关闭事件
+  window.addEventListener('beforeunload', handleWindowClose)
+  
   // 先注册事件监听器，再调用 API
   EventsOn('status-change', (data) => {
     status.value = data
@@ -402,6 +425,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // 移除窗口关闭监听
+  window.removeEventListener('beforeunload', handleWindowClose)
+  
   if (refreshInterval) {
     clearInterval(refreshInterval)
   }
