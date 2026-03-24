@@ -14,13 +14,16 @@ import (
 
 // App 应用主结构
 type App struct {
-	ctx         context.Context
-	socket      *SocketServer
-	printer     *PrinterService
-	config      *Config
-	configPath  string
-	status      *ServiceStatus
-	mu          sync.RWMutex
+	ctx            context.Context
+	socket         *SocketServer
+	printer        *PrinterService
+	config         *Config
+	configPath     string
+	status         *ServiceStatus
+	mu             sync.RWMutex
+	trayManager    *TrayManager
+	quitFromTray   bool
+	statusChangeCh chan struct{}
 }
 
 // Config 配置结构
@@ -72,6 +75,7 @@ func NewApp() *App {
 			AutoStart:    true,
 			MinimizeTray: true,
 		},
+		statusChangeCh: make(chan struct{}, 1),
 	}
 }
 
@@ -370,6 +374,13 @@ func (a *App) emitStatusChange() {
 	if a.ctx != nil {
 		wailsRuntime.EventsEmit(a.ctx, "status-change", a.GetStatus())
 	}
+	// 通知托盘更新状态
+	if a.statusChangeCh != nil {
+		select {
+		case a.statusChangeCh <- struct{}{}:
+		default:
+		}
+	}
 }
 
 // emitTaskError 发送任务错误事件
@@ -391,19 +402,45 @@ func (a *App) emitTaskComplete(taskID string) {
 	}
 }
 
+// initTray 初始化系统托盘（Windows）
+func (a *App) initTray() {
+	if a.trayManager != nil {
+		go a.trayManager.Run()
+	}
+}
+
+// ShowWindow 显示窗口
+func (a *App) ShowWindow() {
+	if a.ctx != nil {
+		wailsRuntime.WindowShow(a.ctx)
+		wailsRuntime.WindowSetAlwaysOnTop(a.ctx, true)
+		wailsRuntime.WindowSetAlwaysOnTop(a.ctx, false)
+	}
+}
+
+// HideWindow 隐藏窗口到托盘
+func (a *App) HideWindow() {
+	if a.ctx != nil {
+		wailsRuntime.WindowHide(a.ctx)
+	}
+}
+
 // Quit 退出应用
 func (a *App) Quit() {
 	fmt.Println("[Quit] 正在退出应用...")
-	
+
+	// 标记为真正退出（非最小化到托盘）
+	a.quitFromTray = true
+
 	// 停止 socket 服务
 	if a.socket != nil && a.socket.IsRunning() {
 		fmt.Println("[Quit] 停止 Socket 服务...")
 		a.socket.Stop()
 	}
-	
+
 	// 保存配置
 	a.saveConfig()
-	
+
 	// 退出应用
 	if a.ctx != nil {
 		wailsRuntime.Quit(a.ctx)

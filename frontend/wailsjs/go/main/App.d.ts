@@ -14,6 +14,8 @@ export function GetStatus():Promise<main.ServiceStatus>;
 
 export function GetTasks():Promise<Array<main.TaskInfo>>;
 
+export function HideWindow():Promise<void>;
+
 export function ProcessPrintTask(arg1:string,arg2:Array<number>,arg3:string,arg4:string):Promise<void>;
 
 export function ProcessPrintURLTask(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
@@ -21,6 +23,8 @@ export function ProcessPrintURLTask(arg1:string,arg2:string,arg3:string,arg4:str
 export function Quit():Promise<void>;
 
 export function SaveConfig(arg1:main.Config):Promise<void>;
+
+export function ShowWindow():Promise<void>;
 
 export function StartServer():Promise<void>;
 

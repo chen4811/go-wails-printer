@@ -26,6 +26,10 @@ export function GetTasks() {
   return window['go']['main']['App']['GetTasks']();
 }
 
+export function HideWindow() {
+  return window['go']['main']['App']['HideWindow']();
+}
+
 export function ProcessPrintTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ProcessPrintTask'](arg1, arg2, arg3, arg4);
 }
@@ -40,6 +44,10 @@ export function Quit() {
 
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
+}
+
+export function ShowWindow() {
+  return window['go']['main']['App']['ShowWindow']();
 }
 
 export function StartServer() {
