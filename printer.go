@@ -258,52 +258,216 @@ func (p *PrinterService) printPDF(filePath string, printerName string) error {
 
 // printPDFWindows Windows 平台打印 PDF
 func (p *PrinterService) printPDFWindows(filePath string, printerName string) error {
-	// 方法1: 使用 Shell.Application COM 对象打印 (最可靠)
+	fmt.Printf("[printPDFWindows] 开始打印 PDF: %s, 打印机: %s\n", filePath, printerName)
+
+	// 方法1: 使用 PDFtoPrinter (推荐，最简单可靠)
+	err := p.printWithPDFtoPrinter(filePath, printerName)
+	if err == nil {
+		fmt.Println("[printPDFWindows] PDFtoPrinter 打印成功")
+		return nil
+	}
+	fmt.Printf("[printPDFWindows] PDFtoPrinter 失败: %v\n", err)
+
+	// 方法2: 使用 SumatraPDF
+	err = p.printWithSumatraPDF(filePath, printerName)
+	if err == nil {
+		fmt.Println("[printPDFWindows] SumatraPDF 打印成功")
+		return nil
+	}
+	fmt.Printf("[printPDFWindows] SumatraPDF 失败: %v\n", err)
+
+	// 方法3: 使用 Adobe Reader
+	err = p.printWithAdobeReader(filePath, printerName)
+	if err == nil {
+		fmt.Println("[printPDFWindows] Adobe Reader 打印成功")
+		return nil
+	}
+	fmt.Printf("[printPDFWindows] Adobe Reader 失败: %v\n", err)
+
+	// 方法4: 使用 Ghostscript
+	err = p.printWithGhostscript(filePath, printerName)
+	if err == nil {
+		fmt.Println("[printPDFWindows] Ghostscript 打印成功")
+		return nil
+	}
+	fmt.Printf("[printPDFWindows] Ghostscript 失败: %v\n", err)
+
+	// 方法5: 使用 Shell.Application (最后备选)
+	err = p.printWithShellApplication(filePath, printerName)
+	if err == nil {
+		fmt.Println("[printPDFWindows] Shell.Application 打印成功")
+		return nil
+	}
+	fmt.Printf("[printPDFWindows] Shell.Application 失败: %v\n", err)
+
+	return errors.New("PDF 打印失败: 请将 PDFtoPrinter.exe 放到程序目录或安装 SumatraPDF/Adobe Reader")
+}
+
+// printWithPDFtoPrinter 使用 PDFtoPrinter 打印 (推荐方案)
+func (p *PrinterService) printWithPDFtoPrinter(filePath string, printerName string) error {
+	// 获取当前工作目录
+	workDir, _ := os.Getwd()
+
+	// 获取可执行文件目录
+	exePath, _ := os.Executable()
+	exeDir := filepath.Dir(exePath)
+
+	// 多种路径搜索
+	pdfToPrinterPaths := []string{
+		// 当前工作目录
+		filepath.Join(workDir, "PDFtoPrinter.exe"),
+		filepath.Join(workDir, "bin", "PDFtoPrinter.exe"),
+		// 可执行文件目录
+		filepath.Join(exeDir, "PDFtoPrinter.exe"),
+		filepath.Join(exeDir, "bin", "PDFtoPrinter.exe"),
+		// 项目根目录（开发模式）
+		`C:\Users\Galaxy\Desktop\go-wails-printer\PDFtoPrinter.exe`,
+		`C:\Users\Galaxy\Desktop\go-wails-printer\bin\PDFtoPrinter.exe`,
+		// 系统安装路径
+		`C:\Program Files\PDFtoPrinter\PDFtoPrinter.exe`,
+		`C:\Program Files (x86)\PDFtoPrinter\PDFtoPrinter.exe`,
+	}
+
+	// 也检查 PATH 环境变量
+	if pdfInPath, err := exec.LookPath("PDFtoPrinter.exe"); err == nil {
+		pdfToPrinterPaths = append([]string{pdfInPath}, pdfToPrinterPaths...)
+	}
+
+	fmt.Printf("[PDFtoPrinter] 搜索路径:\n")
+	for _, path := range pdfToPrinterPaths {
+		fmt.Printf("  - %s\n", path)
+	}
+
+	var pdfToPrinter string
+	for _, path := range pdfToPrinterPaths {
+		if _, err := os.Stat(path); err == nil {
+			pdfToPrinter = path
+			fmt.Printf("[PDFtoPrinter] 找到: %s\n", path)
+			break
+		}
+	}
+
+	if pdfToPrinter == "" {
+		return errors.New("未找到 PDFtoPrinter.exe，请将文件放到程序目录")
+	}
+
+	fmt.Printf("[PDFtoPrinter] 使用: %s\n", pdfToPrinter)
+	fmt.Printf("[PDFtoPrinter] 打印文件: %s\n", filePath)
+	fmt.Printf("[PDFtoPrinter] 打印机: %s\n", printerName)
+
+	// PDFtoPrinter 命令格式:
+	// PDFtoPrinter.exe filename.pdf                  - 打印到默认打印机
+	// PDFtoPrinter.exe filename.pdf "Printer Name"  - 打印到指定打印机
+	var cmd *exec.Cmd
+	if printerName != "" {
+		cmd = exec.Command(pdfToPrinter, filePath, printerName)
+	} else {
+		cmd = exec.Command(pdfToPrinter, filePath)
+	}
+
+	// 设置工作目录为 PDFtoPrinter 所在目录，避免相对路径问题
+	cmd.Dir = filepath.Dir(pdfToPrinter)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("PDFtoPrinter 执行失败: %v, 输出: %s", err, string(output))
+	}
+
+	fmt.Printf("[PDFtoPrinter] 执行成功, 输出: %s\n", string(output))
+	return nil
+}
+
+// printWithSumatraPDF 使用 SumatraPDF 打印
+func (p *PrinterService) printWithSumatraPDF(filePath string, printerName string) error {
+	exePath, _ := os.Executable()
+	exeDir := filepath.Dir(exePath)
+
+	sumatraPaths := []string{
+		filepath.Join(exeDir, "SumatraPDF.exe"),
+		filepath.Join(exeDir, "bin", "SumatraPDF.exe"),
+		`C:\Program Files\SumatraPDF\SumatraPDF.exe`,
+		`C:\Program Files (x86)\SumatraPDF\SumatraPDF.exe`,
+	}
+
+	// 也检查 PATH
+	if sumatraInPath, err := exec.LookPath("SumatraPDF.exe"); err == nil {
+		sumatraPaths = append([]string{sumatraInPath}, sumatraPaths...)
+	}
+
+	for _, sumatraPath := range sumatraPaths {
+		if _, err := os.Stat(sumatraPath); err == nil {
+			fmt.Printf("[SumatraPDF] 使用: %s\n", sumatraPath)
+			printer := printerName
+			if printer == "" {
+				printer = p.getDefaultPrinter()
+			}
+			if printer == "" {
+				continue
+			}
+
+			cmd := exec.Command(sumatraPath, "-print-to", printer, "-silent", filePath)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				fmt.Printf("[SumatraPDF] 失败: %v, 输出: %s\n", err, string(output))
+				continue
+			}
+			return nil
+		}
+	}
+	return errors.New("未找到 SumatraPDF")
+}
+
+// printWithShellApplication 使用 Shell.Application 打印
+func (p *PrinterService) printWithShellApplication(filePath string, printerName string) error {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return err
+	}
+
+	// 如果指定了打印机，临时设置
+	if printerName != "" {
+		oldDefault := p.getDefaultPrinter()
+		if oldDefault != printerName {
+			p.setDefaultPrinter(printerName)
+			defer p.setDefaultPrinter(oldDefault)
+		}
+	}
+
 	psScript := fmt.Sprintf(`
-$sh = New-Object -ComObject Shell.Application
-$folder = $sh.Namespace((Split-Path -Path '%s' -Parent))
-$file = $folder.ParseName((Split-Path -Path '%s' -Leaf))
-%s
-$file.InvokeVerb('Print')
-Start-Sleep -Seconds 3
-`, filePath, filePath, p.getPrinterSetupScript(printerName))
+$filePath = '%s'
+$shell = New-Object -ComObject Shell.Application
+$folder = $shell.Namespace((Split-Path -Parent $filePath))
+$file = $folder.ParseName((Split-Path -Leaf $filePath))
+if ($file) {
+    $file.InvokeVerb('Print')
+    Start-Sleep -Seconds 5
+}
+`, absPath)
 
 	cmd := exec.Command("powershell", "-Command", psScript)
 	output, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
+	if err != nil {
+		return fmt.Errorf("Shell.Application 失败: %v, 输出: %s", err, string(output))
 	}
-	fmt.Printf("Shell.Application 打印失败: %v, 输出: %s\n", err, string(output))
-
-	// 方法2: 使用 Adobe Reader 或 Edge 打印
-	if err := p.printWithAdobeReader(filePath, printerName); err == nil {
-		return nil
-	}
-	fmt.Printf("Adobe Reader 打印失败: %v\n", err)
-
-	// 方法3: 使用 Ghostscript (如果安装)
-	if err := p.printWithGhostscript(filePath, printerName); err == nil {
-		return nil
-	}
-	fmt.Printf("Ghostscript 打印失败: %v\n", err)
-
-	// 方法4: 最后尝试用默认程序打开，用户手动打印
-	fmt.Println("所有自动打印方法失败，尝试打开文件...")
-	cmd = exec.Command("cmd", "/c", "start", "", filePath)
-	return cmd.Run()
+	return nil
 }
 
-// getPrinterSetupScript 获取打印机设置脚本
-func (p *PrinterService) getPrinterSetupScript(printerName string) string {
-	if printerName == "" {
+// getDefaultPrinter 获取默认打印机
+func (p *PrinterService) getDefaultPrinter() string {
+	cmd := exec.Command("powershell", "-Command",
+		"(Get-WmiObject -Query \"SELECT * FROM Win32_Printer WHERE Default=$true\").Name")
+	output, err := cmd.Output()
+	if err != nil {
 		return ""
 	}
-	// 获取当前默认打印机并临时更改
-	return fmt.Sprintf(`
-$oldDefault = (Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Default=$true").Name
-$targetPrinter = Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Name='%s'"
-if ($targetPrinter) { $targetPrinter.SetDefaultPrinter() }
-`, printerName)
+	return strings.TrimSpace(string(output))
+}
+
+// setDefaultPrinter 设置默认打印机
+func (p *PrinterService) setDefaultPrinter(printerName string) error {
+	cmd := exec.Command("powershell", "-Command",
+		fmt.Sprintf(`$p = Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Name='%s'"; if($p) { $p.SetDefaultPrinter() }`, printerName))
+	return cmd.Run()
 }
 
 // printWithAdobeReader 使用 Adobe Reader 打印
