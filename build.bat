@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
 echo   打印服务器 - 构建应用
 echo ========================================
@@ -27,6 +28,12 @@ if %ERRORLEVEL% EQU 0 (
         if not exist build\bin mkdir build\bin
         copy /Y PDFtoPrinter.exe build\bin\ >nul
         echo [OK] PDFtoPrinter.exe 已复制到 build\bin\
+    )
+    
+    REM 复制图标文件到输出目录
+    if exist build\windows\icon.ico (
+        copy /Y build\windows\icon.ico build\bin\icon.ico >nul
+        echo [OK] icon.ico 已复制到 build\bin\
     )
     
     echo.

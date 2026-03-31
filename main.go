@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
@@ -32,7 +33,7 @@ func main() {
 		MinHeight:         600,
 		DisableResize:     false,
 		Frameless:         false,
-		StartHidden:       false,
+		StartHidden:       true,
 		HideWindowOnClose: runtime.GOOS == "windows" && app.config.MinimizeTray,
 		BackgroundColour:  &options.RGBA{R: 255, G: 255, B: 255, A: 1},
 		AssetServer: &assetserver.Options{
@@ -41,7 +42,9 @@ func main() {
 		OnStartup:  app.startup,
 		OnShutdown: app.shutdown,
 		OnDomReady: func(ctx context.Context) {
-			// DOM 准备好后初始化托盘
+			// DOM 准备好后显示窗口
+			wailsRuntime.WindowShow(ctx)
+			// 初始化托盘
 			if runtime.GOOS == "windows" && app.config.MinimizeTray {
 				go app.trayManager.Run()
 			}

@@ -3,6 +3,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -247,14 +249,41 @@ func (t *TrayManager) createTrayIcon() {
 
 // loadIcon 加载图标
 func (t *TrayManager) loadIcon() uintptr {
-	// 尝试多个路径
-	paths := []string{
+	// 获取 exe 所在目录
+	exePath, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exePath)
+		paths := []string{
+			filepath.Join(exeDir, "icon.ico"),
+			filepath.Join(exeDir, "build", "windows", "icon.ico"),
+			filepath.Join(exeDir, "..", "windows", "icon.ico"),
+		}
+
+		for _, p := range paths {
+			if _, err := os.Stat(p); err == nil {
+				iconPath, _ := windows.UTF16PtrFromString(p)
+				hIcon, _, _ := procLoadImageW.Call(
+					0,
+					uintptr(unsafe.Pointer(iconPath)),
+					IMAGE_ICON,
+					16, 16,
+					LR_LOADFROMFILE,
+				)
+				if hIcon != 0 {
+					return hIcon
+				}
+			}
+		}
+	}
+
+	// 开发环境路径
+	devPaths := []string{
 		"build/windows/icon.ico",
 		"bin/icon.ico",
 		"icon.ico",
 	}
 
-	for _, p := range paths {
+	for _, p := range devPaths {
 		iconPath, _ := windows.UTF16PtrFromString(p)
 		hIcon, _, _ := procLoadImageW.Call(
 			0,
