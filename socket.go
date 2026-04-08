@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
+
+//go:embed test.html
+var testHTMLFS embed.FS
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -77,6 +81,7 @@ func (s *SocketServer) Start() error {
 	mux.HandleFunc("/api/printers", s.handlePrinters)
 	mux.HandleFunc("/api/print", s.handlePrintHTTP)
 	mux.HandleFunc("/api/tasks", s.handleTasks)
+	mux.HandleFunc("/test", s.handleTestPage)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	s.server = &http.Server{
@@ -493,6 +498,22 @@ func (s *SocketServer) handleTasks(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"tasks":   s.app.GetTasks(),
 	})
+}
+
+// handleTestPage 返回测试页面
+func (s *SocketServer) handleTestPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	
+	// 从嵌入的文件系统读取 test.html
+	content, err := testHTMLFS.ReadFile("test.html")
+	if err != nil {
+		http.Error(w, "Failed to load test page", http.StatusInternalServerError)
+		log.Printf("Failed to read embedded test.html: %v", err)
+		return
+	}
+	
+	w.Write(content)
 }
 
 // sendResponse 发送 WebSocket 响应

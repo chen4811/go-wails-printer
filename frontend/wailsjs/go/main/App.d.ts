@@ -16,6 +16,8 @@ export function GetTasks():Promise<Array<main.TaskInfo>>;
 
 export function HideWindow():Promise<void>;
 
+export function OpenTestPage():Promise<void>;
+
 export function ProcessPrintTask(arg1:string,arg2:Array<number>,arg3:string,arg4:string):Promise<void>;
 
 export function ProcessPrintURLTask(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;

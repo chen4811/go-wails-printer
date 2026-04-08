@@ -13,6 +13,13 @@
           {{ status.isRunning ? '服务运行中' : '服务已停止' }}
         </span>
         <span class="version">v2.0.0</span>
+        <button class="test-btn" @click="openTestPage" :disabled="!status.isRunning">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+            <path d="M8 12h8v2H8zm0 4h8v2H8zm0-8h5v2H8z"/>
+          </svg>
+          测试页面
+        </button>
       </div>
     </header>
 
@@ -175,7 +182,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { StartServer, StopServer, GetStatus, GetPrinters, GetConfig, SaveConfig, GetTasks, ClearTasks, Quit } from '../wailsjs/go/main/App'
+import { StartServer, StopServer, GetStatus, GetPrinters, GetConfig, SaveConfig, GetTasks, ClearTasks, Quit, OpenTestPage } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 // 状态
@@ -306,6 +313,16 @@ async function clearTasks() {
     tasks.value = []
   } catch (err) {
     console.error('清空任务失败:', err)
+  }
+}
+
+// 打开测试页面
+async function openTestPage() {
+  try {
+    await OpenTestPage()
+  } catch (err) {
+    console.error('打开测试页面失败:', err)
+    alert('打开测试页面失败: ' + err)
   }
 }
 
@@ -482,6 +499,35 @@ onUnmounted(() => {
 .version {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.test-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.test-btn:hover:not(:disabled) {
+  background: #40a9ff;
+  transform: translateY(-1px);
+}
+
+.test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-btn svg {
+  flex-shrink: 0;
 }
 
 /* 主内容区 */

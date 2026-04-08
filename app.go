@@ -446,3 +446,17 @@ func (a *App) Quit() {
 		wailsRuntime.Quit(a.ctx)
 	}
 }
+
+// OpenTestPage 在浏览器中打开测试页面
+func (a *App) OpenTestPage() error {
+	if a.socket == nil || !a.socket.IsRunning() {
+		return fmt.Errorf("服务未运行，请先启动服务")
+	}
+	
+	url := fmt.Sprintf("http://localhost:%d/test", a.config.Port)
+	fmt.Printf("[OpenTestPage] 打开测试页面: %s\n", url)
+	
+	// 使用系统默认浏览器打开
+	wailsRuntime.BrowserOpenURL(a.ctx, url)
+	return nil
+}

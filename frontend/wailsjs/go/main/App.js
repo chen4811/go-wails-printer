@@ -30,6 +30,10 @@ export function HideWindow() {
   return window['go']['main']['App']['HideWindow']();
 }
 
+export function OpenTestPage() {
+  return window['go']['main']['App']['OpenTestPage']();
+}
+
 export function ProcessPrintTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ProcessPrintTask'](arg1, arg2, arg3, arg4);
 }
