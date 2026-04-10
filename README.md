@@ -1,15 +1,18 @@
+
+
 # 打印服务器
 
 基于 Go + Wails + Vue 构建的跨平台打印服务软件。
 
 ## 功能特性
 
-- 🖨️ 支持 PDF、图片等多种格式打印
-- 🌐 支持远程URL文件打印（自动下载并打印）
-- 🔌 WebSocket + HTTP 双协议支持
-- 📡 默认端口 11211，可自定义
-- 📋 实时任务状态追踪
-- 🖥️ 跨平台支持（Windows、macOS、Linux）
+- 支持 PDF、图片等多种格式打印
+- 支持远程 URL 文件打印（自动下载并打印）
+- WebSocket + HTTP 双协议支持
+- 默认端口 11211，可自定义配置
+- 实时任务状态追踪
+- 跨平台支持（Windows、macOS、Linux）
+- 系统托盘运行
 
 ## 技术栈
 
@@ -25,11 +28,15 @@
 2. Node.js 18 或更高版本
 3. Wails CLI
 
-```bash
-# 安装 Wails CLI
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+安装 Wails CLI：
 
-# 检查环境
+```bash
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+```
+
+检查环境：
+
+```bash
 wails doctor
 ```
 
@@ -64,11 +71,12 @@ make build-linux
 ### HTTP API
 
 #### 获取服务状态
+
 ```
 GET /api/status
 ```
 
-响应:
+响应示例：
 ```json
 {
   "isRunning": true,
@@ -80,11 +88,12 @@ GET /api/status
 ```
 
 #### 获取打印机列表
+
 ```
 GET /api/printers
 ```
 
-响应:
+响应示例：
 ```json
 {
   "success": true,
@@ -95,18 +104,23 @@ GET /api/printers
 ```
 
 #### 打印文件
+
 ```
 POST /api/print
 Content-Type: application/json
+```
 
-// 方式1: Base64数据
+**方式一：Base64 数据**
+```json
 {
   "fileType": "pdf",
   "printer": "HP LaserJet",
   "data": "base64编码的文件数据"
 }
+```
 
-// 方式2: 远程URL
+**方式二：远程 URL**
+```json
 {
   "fileType": "pdf",
   "printer": "HP LaserJet",
@@ -114,7 +128,7 @@ Content-Type: application/json
 }
 ```
 
-响应:
+响应示例：
 ```json
 {
   "success": true,
@@ -124,25 +138,29 @@ Content-Type: application/json
 ```
 
 #### 获取任务列表
+
 ```
 GET /api/tasks
 ```
 
 ### WebSocket API
 
-连接地址: `ws://localhost:11211/ws`
+连接地址：`ws://localhost:11211/ws`
 
 #### 打印消息
+
+**方式一：Base64 数据**
 ```json
-// 方式1: Base64数据
 {
   "type": "print",
   "fileType": "pdf",
   "printer": "HP LaserJet",
-  "data": "\"base64编码的数据\""
+  "data": "base64编码的数据"
 }
+```
 
-// 方式2: 远程URL
+**方式二：远程 URL**
+```json
 {
   "type": "print-url",
   "fileType": "pdf",
@@ -154,6 +172,7 @@ GET /api/tasks
 > 注意：使用 `print-url` 类型时，服务器会自动下载远程文件并打印。如果不指定 `fileType`，系统会自动检测文件类型。
 
 #### 查询任务状态
+
 ```json
 {
   "type": "task",
@@ -164,48 +183,3 @@ GET /api/tasks
 ## 前端 SDK 使用
 
 ```html
-<script src="sdk/printer-sdk.js"></script>
-<script>
-// WebSocket 方式
-const printer = new PrinterSDK('ws://localhost:11211/ws')
-await printer.connect()
-
-// 打印 PDF
-const result = await printer.printPDF(base64Data)
-
-// 打印图片
-await printer.printImage(base64Data)
-
-// HTTP API 方式
-const http = new PrinterHTTPClient('http://localhost:11211')
-const status = await http.getStatus()
-</script>
-```
-
-## 项目结构
-
-```
-printer/
-├── main.go          # Wails 主入口
-├── app.go           # 应用逻辑
-├── socket.go        # WebSocket 服务
-├── printer.go       # 打印服务
-├── utils.go         # 工具函数
-├── go.mod           # Go 模块
-├── wails.json       # Wails 配置
-├── Makefile         # 构建脚本
-├── frontend/        # Vue 前端
-│   ├── src/
-│   │   ├── App.vue
-│   │   ├── main.js
-│   │   └── style.css
-│   ├── index.html
-│   ├── vite.config.js
-│   └── package.json
-└── sdk/             # 前端 SDK
-    └── printer-sdk.js
-```
-
-## License
-
-MIT
