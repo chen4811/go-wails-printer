@@ -16,6 +16,7 @@ export default defineConfig({
       }
     }
   },
+  base: '/go-wails-printer/',
   build: {
     outDir: 'dist',
     emptyOutDir: true
